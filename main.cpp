@@ -1,87 +1,95 @@
-//
-// MBED Application Board
-// Lightweight C12832 LCD library
-// 2014, Alexander Medvedev, @medvdv
-//
-
-// 
-// Usage Sample
-// 
-
 #include "mbed.h"
-
 #include "lcd128lib.h" 
+#include "LM75B.h"
+#include "MMA7660.h"
 
-#include "lcd128menu.h"
- 
+
 lcd128 lcd;
+DigitalOut Up(p15);
+DigitalIn fire(p14);
+LM75B sensor(p28, p27);
+PwmOut spkr(p26);
+AnalogOut Aout(p18);
+AnalogIn pot1(p19), pot2(p20);
+PwmOut led1(LED1), led2(LED2), led3(LED3), led4(LED4);
+MMA7660 MMA(p28, p27);
 
-bool    menuCheckVariable = false;
-int     menuRadioVariable = 1;
-float   menuProgressBar   = 0.5;
 
-lcd128entry menuMain[] = {
+void LEDGraph(float value) {
+    led1 = (value >= 0.2) ? 1 : 0;
+    led2 = (value >= 0.4) ? 1 : 0;
+    led3 = (value >= 0.6) ? 1 : 0;
+    led4 = (value >= 0.8) ? 1 : 0;
+}
 
-    { APPMENU_COMMENT,  0, "Main Menu",        true,  false, 0, 0, 0, NULL }, 
-    { APPMENU_ACTION,   1, "Action Item",      false, false, 0, 0, 0, NULL },
-    { APPMENU_ACTION,   2, "Other Action",     false, false, 0, 0, 0, NULL },
-    { APPMENU_BREAK,    0, NULL,               false, false, 0, 0, 0, NULL },
-    { APPMENU_CHECK,    0, "Check Button",     false, false, 0, 0, 0, & menuCheckVariable },
-    { APPMENU_BREAK,    0, NULL,               false, false, 0, 0, 0, NULL },
-    { APPMENU_COMMENT,  0, "Select one:",      false, false, 0, 0, 0, NULL }, 
-    { APPMENU_RADIO,    1, "Radio Button 1",   false, false, 0, 0, 0, & menuRadioVariable },
-    { APPMENU_RADIO,    2, "Radio Button 2",   false, false, 0, 0, 0, & menuRadioVariable },
-    { APPMENU_RADIO,    3, "Radio Button 3",   false, false, 0, 0, 0, & menuRadioVariable },
-    { APPMENU_BAR,      0, NULL,               false, false, 0, 0, 0, & menuProgressBar },
-
-};
-    
-int main()
-{
-    BusIn joy(p15, p12, p13, p16);
-    DigitalIn fire(p14);
-
+int main() {
     lcd.Reset();  
-
-    lcd.XY(0, 0); 
-    lcd.Bold(true); lcd.String("LCD LIBRARY"); lcd.Bold(false);
-    lcd.Row(1, "Simple interface library with nice proportional font.");
+    lcd.XY(0, 0);
+    lcd.Bold(true); lcd.String(" EMBED DEMO "); lcd.Bold(false);
+    lcd.Row(1, "Simple interface to show      different mbed services. ");
     lcd.Row(3, "Push joystick!", true, LCD_ALIGN_CENTER);
-    lcd.InverseRow(2, 0x80); // Add one inverted pixel line upper than last row
     
     lcd.Update();
-    
-    wait_ms(500); while(! fire) wait_ms(100);
-        
-    lcd.Row(0, "Left aligned text");
-    lcd.Row(1, "Center aligned text", false, LCD_ALIGN_CENTER);
-    lcd.Row(2, "Right aligned text", false, LCD_ALIGN_RIGHT);
-    lcd.InverseRow(2, 0x80); // Add one inverted pixel line upper than last row
-    
-    lcd.Update();
+    wait_ms(500); 
+    while(! fire) wait_ms(100);
 
-    wait_ms(500); while(! fire) wait_ms(100);
+
+
+    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2); 
+    lcd.XY(0,0);
+    lcd.Bold(true); lcd.String("Speaker test"); lcd.Bold(false);
+    lcd.Clear(3);
+    lcd.Update();
+    wait_ms(2000);
+
+    for (float i=2000.0; i<10000.0; i+=100) {
+        spkr.period(1.0/i);
+        spkr=0.5;
+        wait(0.1);
+    }
+    lcd.Row(3, "Push joystick!", true, LCD_ALIGN_CENTER);
+    lcd.Update();
+    spkr=0.0;
+    while(!fire) {}
     
+    
+    
+    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2);  
+    lcd.XY(0,0);
+    lcd.Bold(true); lcd.String("Audio out test"); lcd.Bold(false);
+    lcd.Update(); 
+    wait_ms(2000);
+
+    for(float i=0.0; i<1.0; i+=0.1) {
+        Aout = i;
+        wait(0.00001+(0.0001*pot1.read()));
+    }
+    while(!fire) {}
+
+
+
     lcd.Clear(0); lcd.Clear(1); lcd.Clear(2);
-    
-    lcd.XY(0, 1); 
-    lcd.Bold(true); lcd.String("Bold"); lcd.Bold(false);
-    lcd.String(" and ");
-    lcd.Underline(true); lcd.String("underlined"); lcd.Underline(false);
-    lcd.String(" text");
-     
-    lcd.InverseRow(2, 0x80); // Add one inverted pixel line upper than last row
-
+    lcd.XY(0,0);
+    lcd.Bold(true); lcd.String("Potentiometer"); lcd.Bold(false);
     lcd.Update();
-
-    wait_ms(500); while(! fire) wait_ms(100);
-        
-    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2); lcd.InverseRow(2, 0x80);
-
-    lcd.Row(0, "Arbitary X position:");
-
-    wait_ms(500);
+    wait_ms(2000);
+    float sample;
     
+    do {
+        sample = pot1;
+        LEDGraph(sample);
+        wait(0.01);
+        
+    } while(!fire);
+        wait_ms(500);
+
+
+
+    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2);
+    lcd.XY(0,0);
+    lcd.Bold(true); lcd.String("Animation"); lcd.Bold(false);
+    lcd.Update();
+    wait_ms(500);
     int x = 0;    
     
     do { 
@@ -93,63 +101,91 @@ int main()
         x %= 113*8;
         wait_ms(100);
     } while(! fire);
-    
-    wait_ms(500);
-    
-    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2); lcd.InverseRow(2, 0x80);
-    
-    lcd.XY(0,1); lcd.String("Bar");
-
-    x = 0;
-    
+        wait_ms(500);
+  
+  
+  
+    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2);
+    lcd.XY(0,0);
+    lcd.Bold(true); lcd.String("Temperature"); lcd.Bold(false);
+    lcd.XY(0,1); lcd.String("Cel");
     do { 
         lcd.Clear(2); 
         lcd.XY(22, 1); 
-        lcd.Bar(98, x/96.0);
+        lcd.Bar(98, (float)sensor.read()/100.0);
         lcd.Update();
-        x += 1;
-        x %= 97;
         wait_ms(50);
-    } while(! fire);
-
-    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2); lcd.InverseRow(2, 0x80);
-
-    lcd.Row(1, "Hardware Inverse All");
-    lcd.Update();
+    } while(! fire);    
+        wait_ms(500);
+ 
     
-    wait_ms(500); while(! fire) wait_ms(100);
-
-    lcd.InverseMode(true);
-
-    wait_ms(500); while(! fire) wait_ms(100);
-    
-    lcd.InverseMode(false);
-
-    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2); lcd.InverseRow(2, 0x80);
-
-    lcd.Row(1, "Hardware Power Off / On");
-    lcd.Update();
-
-    wait_ms(500); while(! fire) wait_ms(100);
-
-    lcd.Power(false);
-    
-    wait_ms(500); while(! fire) wait_ms(100);
-    
-    lcd.Power(true);
 
     lcd.Clear(0); lcd.Clear(1); lcd.Clear(2);
+    lcd.XY(0,0); lcd.String("R");
+    lcd.XY(0,1); lcd.String("G");
+    lcd.XY(0,2); lcd.String("B");
+    lcd.Clear(3);
     
-    lcd.Row(0, "Menu interface:");
-    lcd.Row(1, "Values and sub-menu");
-    lcd.Row(2, "Checkbox, radiobutton");
+    PwmOut r (p23);
+    PwmOut g (p24);
+    PwmOut b (p25);
+
+    for(float i = 0.0; i < 1.0 ; i += 0.001) {
+        float p = 3 * i;
+        r = 1.0 - ((p < 1.0) ? 1.0 - p : (p > 2.0) ? p - 2.0 : 0.0);
+        g = 1.0 - ((p < 1.0) ? p : (p > 2.0) ? 0.0 : 2.0 - p);
+        b = 1.0 - ((p < 1.0) ? 0.0 : (p > 2.0) ? 3.0 - p : p - 1.0);  ;  
+
+        lcd.XY(22, 0); 
+        lcd.Bar(98, (1.0 - (float)r.read()));
     
-    lcd.InverseRow(2, 0x80);
+        lcd.XY(22, 1); 
+        lcd.Bar(98, (1.0 - (float)g.read()));
+        
+        lcd.XY(22, 2); 
+        lcd.Bar(98, (1.0 - (float)b.read()));
+        
+        lcd.Update();
+        wait_ms(50);
+    } 
+    lcd.Row(3, "Push joystick!", true, LCD_ALIGN_CENTER);
+    lcd.Update();
+    while(! fire);    
+        r = 1.0;
+        g = 1.0;
+        b = 1.0;
+        wait_ms(500);  
+
+
+
+    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2);
+    lcd.XY(0,0);
+    lcd.Bold(true); lcd.String("Accelerometer"); lcd.Bold(false);
+    lcd.Row(1, "led2=x     led3=y                  led4=z");
+    lcd.Update();
+
+    if (MMA.testConnection())
+        led1 = 1;
+        
+    do {
+        led2 = MMA.x();
+        led3 = MMA.y();
+        led4 = MMA.z();
+        
+        
+    } while(! fire);    
+        wait_ms(500);
+
+
+
+    lcd.Clear(0); lcd.Clear(1); lcd.Clear(2);
+    lcd.Update();
+    lcd.Reset();  
+    lcd.XY(0, 0); 
+    lcd.Bold(true); lcd.String("   THE END"); lcd.Bold(false);
+    lcd.Row(1, "Simple interface to show      different mbed services.");
+    lcd.Row(3, "PRESS THE RESET BUTTON");
     
     lcd.Update();
-    
-    wait_ms(500); while(! fire) wait_ms(100);    
-           
-    lcd128menu(&lcd, menuMain, sizeof(menuMain) / sizeof(lcd128entry)); 
 
 }
